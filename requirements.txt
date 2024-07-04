@@ -6,3 +6,4 @@ python-dotenv
 chromadb
 pypdf
 PyPDF2
+transformers
