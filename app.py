@@ -16,74 +16,96 @@ load_dotenv()
 google_api_key = os.getenv("GOOGLE_API_KEY")
 
 # Set up the app layout
-st.set_page_config(page_title="Chat Your PDFs", page_icon="📄")
+st.set_page_config(page_title="Chat Your PDFs", page_icon="📄", layout="wide")
 st.title("Chat Your PDFs 📄")  # Updated title with icon
 
-# Instructions for the user
-st.markdown("""
-Welcome to **Chat Your PDFs**! This tool allows you to upload a PDF document and ask questions about its content. 
-The answers will be generated based on the context extracted from your PDF.
-""")
+# Initialize session state for chat history and PDF context
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+if 'pdf_context' not in st.session_state:
+    st.session_state.pdf_context = None
 
-# Check if the API key is available
-if google_api_key is None:
-    st.warning("API key not found. Please set the GOOGLE_API_KEY environment variable in a .env file.")
-    st.stop()
+# Sidebar for file upload
+with st.sidebar:
+    st.header("Upload your PDF file")
+    uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"], help="Upload your PDF file here to start the analysis.")
+    if uploaded_file is not None:
+        st.success("PDF File Uploaded Successfully!")
+        
+        # PDF Processing (using PyPDF2 directly)
+        pdf_data = uploaded_file.read()
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
+        pdf_pages = pdf_reader.pages
 
-# File Upload with user-defined name
-uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"], help="Upload your PDF file here to start the analysis.")
+        # Create Context
+        context = "\n\n".join(page.extract_text() for page in pdf_pages)
 
-if uploaded_file is not None:
-    st.success("PDF File Uploaded Successfully!")
+        # Split Texts
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=200)
+        texts = text_splitter.split_text(context)
 
-    # PDF Processing (using PyPDF2 directly)
-    pdf_data = uploaded_file.read()
-    pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_data))
-    pdf_pages = pdf_reader.pages
+        # Chroma Embeddings
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        vector_index = Chroma.from_texts(texts, embeddings).as_retriever()
+        
+        st.session_state.vector_index = vector_index  # Store in session state for later use
+        st.session_state.pdf_context = context  # Store PDF context in session state
 
-    # Create Context
-    context = "\n\n".join(page.extract_text() for page in pdf_pages)
+def get_response(question):
+    vector_index = st.session_state.vector_index
+    # Get Relevant Documents
+    docs = vector_index.get_relevant_documents(question)
 
-    # Split Texts
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=200)
-    texts = text_splitter.split_text(context)
+    # Define Prompt Template
+    prompt_template = """
+    Answer the question as detailed as possible from the provided context,
+    make sure to provide all the details. If the answer is not in
+    the provided context, just say, "The answer is not available in the context."
+    Don't provide incorrect information.\n\n
+    Context:\n {context}?\n
+    Question:\n{question}\n
+    Answer:
+    """
 
-    # Chroma Embeddings
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    vector_index = Chroma.from_texts(texts, embeddings).as_retriever()
+    # Create Prompt
+    prompt = PromptTemplate(template=prompt_template, input_variables=['context', 'question'])
 
-    # Get User Question
-    user_question = st.text_input("Ask a Question:", help="Type your question here after uploading the PDF.")
+    # Load QA Chain
+    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3, api_key=google_api_key)
+    chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
 
-    if st.button("Get Answer"):
-        if user_question:
-            # Get Relevant Documents
-            docs = vector_index.get_relevant_documents(user_question)
+    # Get Response
+    response = chain({"input_documents": docs, "question": question}, return_only_outputs=True)
+    return response['output_text']
 
-            # Define Prompt Template
-            prompt_template = """
-            Answer the question as detailed as possible from the provided context,
-            make sure to provide all the details. If the answer is not in
-            the provided context, just say, "The answer is not available in the context."
-            Don't provide incorrect information.\n\n
-            Context:\n {context}?\n
-            Question:\n{question}\n
-            Answer:
-            """
+# Main chat interface
+st.subheader("Chat with your PDF")
 
-            # Create Prompt
-            prompt = PromptTemplate(template=prompt_template, input_variables=['context', 'question'])
+if 'vector_index' in st.session_state:
+    # Display Chat History
+    chat_placeholder = st.empty()
+    with chat_placeholder.container():
+        for interaction in st.session_state.chat_history:
+            st.write(f"**You:** {interaction['question']}")
+            st.write(f"**Bot:** {interaction['answer']}")
+            st.markdown("---")
 
-            # Load QA Chain
-            model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3, api_key=google_api_key)
-            chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
+    # User Question
+    user_question = st.text_input("Ask a Question:", key="user_question", help="Type your question here and press Enter.", on_change=lambda: st.session_state.update({
+        'question_submitted': True
+    }))
 
-            # Get Response
-            response = chain({"input_documents": docs, "question": user_question}, return_only_outputs=True)
+    # If the user presses Enter
+    if st.session_state.get('question_submitted'):
+        # Get answer
+        response = get_response(user_question)
 
-            # Display Answer
-            st.subheader("Answer:")
-            st.write(response['output_text'])
+        # Add interaction to chat history
+        st.session_state.chat_history.append({"question": user_question, "answer": response})
 
-        else:
-            st.warning("Please enter a question.")
+        # Clear input field and reset question_submitted
+        st.session_state.user_question = ""
+        st.session_state.question_submitted = False
+        st.experimental_rerun()
+else:
+    st.info("Please upload a PDF file to start chatting.")
