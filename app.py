@@ -9,24 +9,32 @@ import PyPDF2
 import os
 import io
 
-st.title("Chat Your PDFs")  # Updated title
-
 # Load environment variables from .env file
 load_dotenv()
 
 # Retrieve API key from environment variable
 google_api_key = os.getenv("GOOGLE_API_KEY")
 
+# Set up the app layout
+st.set_page_config(page_title="Chat Your PDFs", page_icon="📄")
+st.title("Chat Your PDFs 📄")  # Updated title with icon
+
+# Instructions for the user
+st.markdown("""
+Welcome to **Chat Your PDFs**! This tool allows you to upload a PDF document and ask questions about its content. 
+The answers will be generated based on the context extracted from your PDF.
+""")
+
 # Check if the API key is available
 if google_api_key is None:
-    st.warning("API key not found. Please set the google_api_key environment variable.")
+    st.warning("API key not found. Please set the GOOGLE_API_KEY environment variable in a .env file.")
     st.stop()
 
 # File Upload with user-defined name
-uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"], help="Upload your PDF file here to start the analysis.")
 
 if uploaded_file is not None:
-    st.text("PDF File Uploaded Successfully!")
+    st.success("PDF File Uploaded Successfully!")
 
     # PDF Processing (using PyPDF2 directly)
     pdf_data = uploaded_file.read()
@@ -45,7 +53,7 @@ if uploaded_file is not None:
     vector_index = Chroma.from_texts(texts, embeddings).as_retriever()
 
     # Get User Question
-    user_question = st.text_input("Ask a Question:")
+    user_question = st.text_input("Ask a Question:", help="Type your question here after uploading the PDF.")
 
     if st.button("Get Answer"):
         if user_question:
@@ -55,11 +63,11 @@ if uploaded_file is not None:
             # Define Prompt Template
             prompt_template = """
             Answer the question as detailed as possible from the provided context,
-            make sure to provide all the details, if the answer is not in
-            provided context just say, "answer is not available in the context",
-            don't provide the wrong answer\n\n
+            make sure to provide all the details. If the answer is not in
+            the provided context, just say, "The answer is not available in the context."
+            Don't provide incorrect information.\n\n
             Context:\n {context}?\n
-            Question: \n{question}\n
+            Question:\n{question}\n
             Answer:
             """
 
