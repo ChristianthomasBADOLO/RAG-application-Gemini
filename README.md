@@ -12,7 +12,8 @@ The application processes a PDF by extracting its text, splitting it into manage
 
 ![Flowcharts - Page 1 (1)](https://github.com/ChristianthomasBADOLO/RAG-application-Gemini/assets/167626485/8cce5a5c-b044-40be-8e89-ebb3132b0778)
 
-![Flowchart](path/to/your/image2.png)
+![Flowcharts - Page 1 (2)](https://github.com/ChristianthomasBADOLO/RAG-application-Gemini/assets/167626485/299c52bd-5fce-4a50-81b6-18b0f755e0ae)
+
 
 ## Architecture
 
