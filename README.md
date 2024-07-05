@@ -10,7 +10,8 @@ This repository contains a Streamlit application that implements Retrieval-Augme
 
 The application processes a PDF by extracting its text, splitting it into manageable chunks, embedding these chunks into a vector space, and storing the embeddings in a vector database. When a user asks a question, the app retrieves the most relevant document chunks and generates a detailed answer using the Gemini Pro model.
 
-![Flowchart](path/to/your/image1.png)
+![Flowcharts - Page 1 (1)](https://github.com/ChristianthomasBADOLO/RAG-application-Gemini/assets/167626485/8cce5a5c-b044-40be-8e89-ebb3132b0778)
+
 ![Flowchart](path/to/your/image2.png)
 
 ## Architecture
