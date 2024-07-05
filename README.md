@@ -113,3 +113,6 @@ def get_response(question):
     return response['output_text']
 ```
 
+# DEMO
+[test.webm](https://github.com/ChristianthomasBADOLO/RAG-application-Gemini/assets/167626485/ee9c3097-a385-464f-8472-bd6b856bfec8)
+
