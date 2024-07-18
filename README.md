@@ -52,7 +52,7 @@ GOOGLE_API_KEY=your_google_api_key_here
 To run the application, use the following command:
 
 ```bash
-streamlit run app.py
+streamlit run rag.py
 ```
 
 ## Application Structure
